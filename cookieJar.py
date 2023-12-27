@@ -145,3 +145,290 @@ def _get_osx_keychain_password(osx_key_service, osx_key_user):
         return CHROMIUM_DEFAULT_PASSWORD  # return the default password
     # otherwise, return the password
     return out.strip()  # return the password
+
+# define a function to expand a Windows path
+def _expand_win_path(path: Union[dict, str]):
+    # if the path is not a dictionary, convert it to a dictionary
+    if not isinstance(path, dict):  # if the path is not a dictionary
+        path = {'path': path}  # convert the path to a dictionary
+    # return the expanded path
+    return os.path.join(os.getenv(path['env'], ''), path['path'])  # return the expanded path
+
+# define a function to expand paths on different operating systems
+def _expand_paths_impl(paths: list, os_name: str):
+    """Expands user paths on Linux, OSX, and windows"""
+    # convert the os_name to lowercase
+    os_name = os_name.lower()  # convert to lowercase
+    # assert that the os_name is one of the expected values
+    assert os_name in ['windows', 'osx', 'linux']  # check that the os_name is valid
+
+    # if paths is not a list, convert it to a list
+    if not isinstance(paths, list):  # if paths is not a list
+        paths = [paths]  # convert paths to a list
+
+    # if the os_name is 'windows', expand the paths using _expand_win_path
+    if os_name == 'windows':  # if the os_name is 'windows'
+        paths = map(_expand_win_path, paths)  # expand the paths
+    # otherwise, expand the paths using os.path.expanduser
+    else:  # if the os_name is not 'windows'
+        paths = map(os.path.expanduser, paths)  # expand the paths
+
+    # for each path in paths
+    for path in paths:  # for each path
+        # for each file in the sorted list of files that match the path
+        for i in sorted(glob.glob(path)):  # for each file
+            # yield the file
+            yield i  # yield the file
+
+# define a function to expand paths and return the first result
+def _expand_paths(paths: list, os_name: str):
+    # return the first result from _expand_paths_impl, or None if there are no results
+    return next(_expand_paths_impl(paths, os_name), None)  # return the first result or None
+
+# define a function to normalize paths and channels for Chromium
+def _normalize_genarate_paths_chromium(paths: Union[str, list], channel: Union[str, list] = None):
+    # if channel is None, set it to an empty string
+    channel = channel or ['']  # set default channel
+    # if channel is not a list, convert it to a list
+    if not isinstance(channel, list):  # if channel is not a list
+        channel = [channel]  # convert channel to a list
+    # if paths is not a list, convert it to a list
+    if not isinstance(paths, list):  # if paths is not a list
+        paths = [paths]  # convert paths to a list
+    # return the paths and channel
+    return paths, channel  # return the paths and channel
+
+# define a function to generate paths for Chromium on *nix systems
+def _genarate_nix_paths_chromium(paths: Union[str, list], channel: Union[str, list] = None):
+    """Generate paths for chromium based browsers on *nix systems."""
+    # normalize the paths and channel
+    paths, channel = _normalize_genarate_paths_chromium(paths, channel)  # normalize the paths and channel
+    # initialize an empty list to hold the generated paths
+    genararated_paths = []  # initialize an empty list
+    # for each channel in the channel list
+    for chan in channel:  # for each channel
+        # for each path in the paths list
+        for path in paths:  # for each path
+            # append the path with the channel formatted into it to the list of generated paths
+            genararated_paths.append(path.format(channel=chan))  # append the path
+    # return the list of generated paths
+    return genararated_paths  # return the generated paths
+
+# define a function to generate paths for Chromium on Windows
+def _genarate_win_paths_chromium(paths: Union[str, list], channel: Union[str, list] = None):
+    """Generate paths for chromium based browsers on windows"""
+    # normalize the paths and channel
+    paths, channel = _normalize_genarate_paths_chromium(paths, channel)  # normalize the paths and channel
+    # initialize an empty list to hold the generated paths
+    genararated_paths = []  # initialize an empty list
+    # for each channel in the channel list
+    for chan in channel:  # for each channel
+        # for each path in the paths list
+        for path in paths:  # for each path
+            # append the path with the channel formatted into it to the list of generated paths
+            # for each of the three possible environment variables
+            genararated_paths.append({'env': 'APPDATA', 'path': '..\\Local\\' + path.format(channel=chan)})  # append the path
+            genararated_paths.append({'env': 'LOCALAPPDATA', 'path': path.format(channel=chan)})  # append the path
+            genararated_paths.append({'env': 'APPDATA', 'path': path.format(channel=chan)})  # append the path
+    # return the list of generated paths
+    return genararated_paths  # return the generated paths
+
+# define a function to decode data as UTF-8
+def _text_factory(data):
+    # try to decode the data as UTF-8
+    try:  # try to decode
+        return data.decode('utf-8')  # return the decoded data
+    # if a UnicodeDecodeError is raised, return the original data
+    except UnicodeDecodeError:  # if a UnicodeDecodeError is raised
+        return data  # return the original data
+
+
+# define a class to manage a Jeepney connection
+class _JeepneyConnection:
+    # initialize the connection
+    def __init__(self, object_path, bus_name, interface):
+        # store the DBus address
+        self.__dbus_address = jeepney.DBusAddress(object_path, bus_name, interface)
+
+    # enter the context of the connection
+    def __enter__(self):
+        # open the connection
+        self.__connection = open_dbus_connection()
+        # return the connection
+        return self
+
+    # exit the context of the connection
+    def __exit__(self, exc_type, exc_value, traceback):
+        # close the connection
+        self.__connection.close()
+
+    # define a method to close the connection
+    def close(self):
+        # close the connection
+        self.__connection.close()
+
+    # define a method to call a method on the DBus address
+    def call_method(self, method_name, signature=None, *args):
+        # create a new method call
+        method = jeepney.new_method_call(self.__dbus_address, method_name, signature, args)
+        # send the method call and get the reply
+        response = self.__connection.send_and_get_reply(method)
+        # if the response is an error, raise a RuntimeError
+        if response.header.message_type == jeepney.MessageType.error:
+            raise RuntimeError(response.body[0])
+        # return the body of the response
+        return response.body[0] if len(response.body) == 1 else response.body
+
+# define a class to manage passwords on Linux
+class _LinuxPasswordManager:
+    """Retrieve password used to encrypt cookies from KDE Wallet or SecretService"""
+    # define the application ID
+    _APP_ID = 'browser-cookie3'
+
+    # initialize the password manager
+    def __init__(self, use_dbus):
+        # if use_dbus is True, use the DBus methods
+        if use_dbus:
+            self.__methods_map = {
+                'kwallet': self.__get_kdewallet_password_dbus,
+                'secretstorage': self.__get_secretstorage_item_dbus
+            }
+        # otherwise, use the Jeepney methods
+        else:
+            self.__methods_map = {
+                'kwallet': self.__get_kdewallet_password_jeepney,
+                'secretstorage': self.__get_secretstorage_item_jeepney
+            }
+
+    # define a method to get the password
+    def get_password(self, os_crypt_name):
+        # try to get the password from SecretStorage
+        try:
+            return self.__get_secretstorage_password(os_crypt_name)
+        except RuntimeError:
+            pass
+        # if that fails, try to get the password from KWallet
+        try:
+            return self.__methods_map.get('kwallet')(os_crypt_name)
+        except RuntimeError:
+            pass
+        # if that fails, return the default Chromium password
+        return CHROMIUM_DEFAULT_PASSWORD
+
+    def __get_secretstorage_password(self, os_crypt_name):
+    # define schemas to be used
+    schemas = ['chrome_libsecret_os_crypt_password_v2', 'chrome_libsecret_os_crypt_password_v1']
+    # iterate over schemas
+    for schema in schemas:
+        try:
+            # try to get password using the current schema
+            return self.__methods_map.get('secretstorage')(schema, os_crypt_name)
+        except RuntimeError:
+            # if an error occurs, continue to the next schema
+            pass
+    # if no password is found, raise an error
+    raise RuntimeError(f'Can not find secret for {os_crypt_name}')
+
+    def __get_secretstorage_item_dbus(self, schema: str, application: str):
+        # open a DBus connection
+        with contextlib.closing(dbus.SessionBus()) as connection:
+            try:
+                # try to get the secret service object
+                secret_service = dbus.Interface(
+                    connection.get_object('org.freedesktop.secrets', '/org/freedesktop/secrets', False),
+                    'org.freedesktop.Secret.Service',
+                )
+            except dbus.exceptions.DBusException:
+                # if an error occurs, raise an error
+                raise RuntimeError("The name org.freedesktop.secrets was not provided by any .service files")
+            # search for items matching the schema and application
+            object_path = secret_service.SearchItems({
+                'xdg:schema': schema,
+                'application': application,
+            })
+            # filter out empty paths
+            object_path = list(filter(lambda x: len(x), object_path))
+            # if no paths were found, raise an error
+            if len(object_path) == 0:
+                raise RuntimeError(f'Can not find secret for {application}')
+            # get the first path
+            object_path = object_path[0][0]
+
+            # unlock the secret service
+            secret_service.Unlock([object_path])
+            # open a session with the secret service
+            _, session = secret_service.OpenSession('plain', dbus.String('', variant_level=1))
+            # get the secrets from the secret service
+            _, _, secret, _ = secret_service.GetSecrets([object_path], session)[object_path]
+            # return the secret
+            return bytes(secret)
+
+    def __get_kdewallet_password_dbus(self, os_crypt_name):
+        # define the folder and key to be used
+        folder = f'{os_crypt_name.capitalize()} Keys'
+        key = f'{os_crypt_name.capitalize()} Safe Storage'
+        # open a DBus connection
+        with contextlib.closing(dbus.SessionBus()) as connection:
+            try:
+                # try to get the kwalletd5 object
+                kwalletd5_object = connection.get_object('org.kde.kwalletd5', '/modules/kwalletd5', False)
+            except dbus.exceptions.DBusException:
+                # if an error occurs, raise an error
+                raise RuntimeError("The name org.kde.kwalletd5 was not provided by any .service files")
+            # get the kwalletd5 interface
+            kwalletd5 = dbus.Interface(kwalletd5_object, 'org.kde.KWallet')
+            # open the wallet
+            handle = kwalletd5.open(kwalletd5.networkWallet(), dbus.Int64(0), self._APP_ID)
+            # if the folder does not exist, raise an error
+            if not kwalletd5.hasFolder(handle, folder, self._APP_ID):
+                kwalletd5.close(handle, False, self._APP_ID)
+                raise RuntimeError(f'KDE Wallet folder {folder} not found.')
+            # read the password from the wallet
+            password = kwalletd5.readPassword(handle, folder, key, self._APP_ID)
+            # close the wallet
+            kwalletd5.close(handle, False, self._APP_ID)
+            # return the password
+            return password.encode('utf-8')
+
+    def __get_secretstorage_item_jeepney(self, schema: str, application: str):
+    # open a Jeepney connection to the SecretService
+    with _JeepneyConnection('/org/freedesktop/secrets', 'org.freedesktop.secrets', 'org.freedesktop.Secret.Service') as connection:
+        # search for items matching the schema and application
+        object_path = connection.call_method('SearchItems', 'a{ss}', {'xdg:schema': schema, 'application': application})
+        # filter out empty paths
+        object_path = list(filter(lambda x: len(x), object_path))
+        # if no paths were found, raise an error
+        if len(object_path) == 0:
+            raise RuntimeError(f'Can not find secret for {application}')
+        # get the first path
+        object_path = object_path[0][0]
+
+        # unlock the secret service
+        connection.call_method('Unlock', 'ao', [object_path])
+        # open a session with the secret service
+        _, session = connection.call_method('OpenSession', 'sv', 'plain', '')
+        # get the secrets from the secret service
+        _, _, secret, _ = connection.call_method('GetSecrets', 'aoo', [object_path], session)[object_path]
+        # return the secret
+        return bytes(secret)
+
+    def __get_kdewallet_password_jeepney(self, os_crypt_name):
+        # define the folder and key to be used
+        folder = f'{os_crypt_name.capitalize()} Keys'
+        key = f'{os_crypt_name.capitalize()} Safe Storage'
+        # open a Jeepney connection to the KDE Wallet
+        with _JeepneyConnection('/modules/kwalletd5', 'org.kde.KWallet', 'org.kde.KWallet') as connection:
+            # open the wallet
+            handle = connection.call_method('open', 'ssq', connection.call_method('networkWallet', ''), 0, self._APP_ID)
+            # if the folder does not exist, raise an error
+            if not connection.call_method('hasFolder', 'iqss', handle, folder, self._APP_ID):
+                connection.call_method('close', 'iqs', handle, False, self._APP_ID)
+                raise RuntimeError(f'KDE Wallet folder {folder} not found.')
+            # read the password from the wallet
+            password = connection.call_method('readPassword', 'iqsss', handle, folder, key, self._APP_ID)
+            # close the wallet
+            connection.call_method('close', 'iqs', handle, False, self._APP_ID)
+            # return the password
+            return password.encode('utf-8')
+
+
