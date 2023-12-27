@@ -1031,5 +1031,191 @@ class Firefox:
         self.__add_session_cookies_lz4(cj)
         return cj
 
+class Safari:
+    # class for Safari
 
+    APPLE_TO_UNIX_TIME = 978307200
+    NEW_ISSUE_MESSAGE = 'Page format changed.\nPlease create a new issue on: https://github.com/borisbabic/browser_cookie3/issues/new'
+    safari_cookies = [
+        '~/Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies',
+        '~/Library/Cookies/Cookies.binarycookies'
+    ]
+
+    def __init__(self, cookie_file=None, domain_name=""):
+        # initialize with offset, domain name, and buffer
+        self.__offset = 0
+        self.__domain_name = domain_name
+        self.__buffer = None
+        self.__open_file(cookie_file)
+        self.__parse_header()
+
+    def __del__(self):
+        # close the buffer when object is deleted
+        if self.__buffer:
+            self.__buffer.close()
+
+    def __open_file(self, cookie_file):
+        # open the cookie file
+        cookie_file = cookie_file or _expand_paths(self.safari_cookies, 'osx')
+        if not cookie_file:
+            raise BrowserCookieError('Can not find Safari cookie file')
+        self.__buffer = open(cookie_file, 'rb')
+
+    def __read_file(self, size: int, offset: int = None):
+        # read the file with given size and offset
+        if offset is not None:
+            self.__offset = offset
+        self.__buffer.seek(self.__offset)
+        self.__offset += size
+        return BytesIO(self.__buffer.read(size))
+
+    def __parse_header(self):
+        # parse the header of the file
+        assert self.__buffer.read(4) == b'cook', 'Not a safari cookie file'
+        self.__total_page = struct.unpack('>I', self.__buffer.read(4))[0]
+        self.__page_sizes = []
+        for _ in range(self.__total_page):
+            self.__page_sizes.append(struct.unpack('>I', self.__buffer.read(4))[0])
+
+    @staticmethod
+    def __read_until_null(file: BytesIO, decode: bool = True):
+        # read the file until null character
+        data = []
+        while True:
+            byte = file.read(1)
+            if byte == b'\x00':
+                break
+            data.append(byte)
+        data = b''.join(data)
+        if decode:
+            data = data.decode('utf-8')
+        return data
+
+    def __parse_cookie(self, page: BytesIO, cookie_offset: int):
+        # parse the cookie from the page
+        page.seek(cookie_offset)
+        cookie_size = struct.unpack('<I', page.read(4))[0]
+        page.seek(4, 1)  # skip 4-bytes unknown data
+        flags = struct.unpack('<I', page.read(4))[0]
+        page.seek(4, 1)  # skip 4-bytes unknown data
+        is_secure = bool(flags & 0x1)
+        is_httponly = bool(flags & 0x4)
+        host_offset = struct.unpack('<I', page.read(4))[0]
+        name_offset = struct.unpack('<I', page.read(4))[0]
+        path_offset = struct.unpack('<I', page.read(4))[0]
+        value_offset = struct.unpack('<I', page.read(4))[0]
+        comment_offset = struct.unpack('<I', page.read(4))[0]
+        assert page.read(4) == b'\x00\x00\x00\x00', self.NEW_ISSUE_MESSAGE
+        expiry_date = int(struct.unpack('<d', page.read(8))[0] + self.APPLE_TO_UNIX_TIME)  # convert to unix time
+        creation_time = int(struct.unpack('<d', page.read(8))[0] + self.APPLE_TO_UNIX_TIME)  # convert to unix time
+        page.seek(cookie_offset + host_offset, 0)
+        host = self.__read_until_null(page)
+        page.seek(cookie_offset + name_offset, 0)
+        name = self.__read_until_null(page)
+        page.seek(cookie_offset + path_offset, 0)
+        path = self.__read_until_null(page)
+        page.seek(cookie_offset + value_offset, 0)
+        value = self.__read_until_null(page)
+        if comment_offset:
+            page.seek(cookie_offset + comment_offset, 0)
+            comment = self.__read_until_null(page)
+        return create_cookie(host, path, is_secure, expiry_date, name, value, is_httponly)
+
+    def __domain_filter(self, cookie: http.cookiejar.Cookie):
+        # filter cookies by domain name
+        if not self.__domain_name:
+            return True
+        return self.__domain_name in cookie.domain
+
+    def __parse_page(self, page_index: int):
+        # parse the page with given index
+        offset = 8 + self.__total_page * 4 + sum(self.__page_sizes[:page_index])
+        page = self.__read_file(self.__page_sizes[page_index], offset)
+        assert page.read(4) == b'\x00\x00\x01\x00', self.NEW_ISSUE_MESSAGE
+        n_cookies = struct.unpack('<I', page.read(4))[0]
+        cookie_offsets = []
+        for _ in range(n_cookies):
+            cookie_offsets.append(struct.unpack('<I', page.read(4))[0])
+        assert page.read(4) == b'\x00\x00\x00\x00', self.NEW_ISSUE_MESSAGE
+        for offset in cookie_offsets:
+            yield self.__parse_cookie(page, offset)
+
+    def load(self):
+        # load the cookies into a cookie jar
+        cj = http.cookiejar.CookieJar()
+        for i in range(self.__total_page):
+            for cookie in self.__parse_page(i):
+                if self.__domain_filter(cookie):
+                    cj.set_cookie(cookie)
+        return cj
+
+def create_cookie(host, path, secure, expires, name, value, http_only):
+    # function to create a cookie
+    return http.cookiejar.Cookie(0, name, value, None, False, host, host.startswith('.'), host.startswith('.'), path,
+                                 True, secure, expires, False, None, None,
+                                 {'HTTPOnly': ''} if http_only else {})
+
+def chrome(cookie_file=None, domain_name="", key_file=None):
+    # function to load cookies used by Chrome
+    return Chrome(cookie_file, domain_name, key_file).load()
+
+def chromium(cookie_file=None, domain_name="", key_file=None):
+    # function to load cookies used by Chromium
+    return Chromium(cookie_file, domain_name, key_file).load()
+
+def opera(cookie_file=None, domain_name="", key_file=None):
+    # function to load cookies used by Opera
+    return Opera(cookie_file, domain_name, key_file).load()
+
+def opera_gx(cookie_file=None, domain_name="", key_file=None):
+    # function to load cookies used by Opera GX
+    return OperaGX(cookie_file, domain_name, key_file).load()
+
+def brave(cookie_file=None, domain_name="", key_file=None):
+    # function to load cookies and sessions used by Brave
+    return Brave(cookie_file, domain_name, key_file).load()
+
+def edge(cookie_file=None, domain_name="", key_file=None):
+    # function to load cookies used by Microsoft Edge
+    return Edge(cookie_file, domain_name, key_file).load()
+
+def vivaldi(cookie_file=None, domain_name="", key_file=None):
+    # function to load cookies used by Vivaldi Browser
+    return Vivaldi(cookie_file, domain_name, key_file).load()
+
+def firefox(cookie_file=None, domain_name=""):
+    # function to load cookies and sessions used by Firefox
+    return Firefox(cookie_file, domain_name).load()
+
+def safari(cookie_file=None, domain_name=""):
+    # function to load cookies and sessions used by Safari
+    return Safari(cookie_file, domain_name).load()
+
+def load(domain_name=""):
+    # function to load cookies from all supported browsers and return combined cookie jar
+    cj = http.cookiejar.CookieJar()
+    for cookie_fn in [chrome, chromium, opera, opera_gx, brave, edge, vivaldi, firefox, safari]:
+        try:
+            for cookie in cookie_fn(domain_name=domain_name):
+                cj.set_cookie(cookie)
+        except BrowserCookieError:
+            pass
+    return cj
+
+"""
+
+to retrieve all cookies, leave the argument empty
+
+cookies = load()
+print(cookies)
+
+to retrieve cookies for a specific site, specify the domain
+
+cookies = load(domain='instagram.com')
+print(cookies)
+"""
+
+# run load() on domain
+s = load(domain_name="instagram.com")
+print(s)
 
