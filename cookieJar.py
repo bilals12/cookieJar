@@ -186,7 +186,7 @@ def _expand_paths(paths: list, os_name: str):
     return next(_expand_paths_impl(paths, os_name), None)  # return the first result or None
 
 # define a function to normalize paths and channels for Chromium
-def _normalize_genarate_paths_chromium(paths: Union[str, list], channel: Union[str, list] = None):
+def _normalize_generate_paths_chromium(paths: Union[str, list], channel: Union[str, list] = None):
     # if channel is None, set it to an empty string
     channel = channel or ['']  # set default channel
     # if channel is not a list, convert it to a list
@@ -199,39 +199,39 @@ def _normalize_genarate_paths_chromium(paths: Union[str, list], channel: Union[s
     return paths, channel  # return the paths and channel
 
 # define a function to generate paths for Chromium on *nix systems
-def _genarate_nix_paths_chromium(paths: Union[str, list], channel: Union[str, list] = None):
+def _generate_nix_paths_chromium(paths: Union[str, list], channel: Union[str, list] = None):
     """Generate paths for chromium based browsers on *nix systems."""
     # normalize the paths and channel
-    paths, channel = _normalize_genarate_paths_chromium(paths, channel)  # normalize the paths and channel
+    paths, channel = _normalize_generate_paths_chromium(paths, channel)  # normalize the paths and channel
     # initialize an empty list to hold the generated paths
-    genararated_paths = []  # initialize an empty list
+    generated_paths = []  # initialize an empty list
     # for each channel in the channel list
     for chan in channel:  # for each channel
         # for each path in the paths list
         for path in paths:  # for each path
             # append the path with the channel formatted into it to the list of generated paths
-            genararated_paths.append(path.format(channel=chan))  # append the path
+            generated_paths.append(path.format(channel=chan))  # append the path
     # return the list of generated paths
-    return genararated_paths  # return the generated paths
+    return generated_paths  # return the generated paths
 
 # define a function to generate paths for Chromium on Windows
-def _genarate_win_paths_chromium(paths: Union[str, list], channel: Union[str, list] = None):
+def _generate_win_paths_chromium(paths: Union[str, list], channel: Union[str, list] = None):
     """Generate paths for chromium based browsers on windows"""
     # normalize the paths and channel
-    paths, channel = _normalize_genarate_paths_chromium(paths, channel)  # normalize the paths and channel
+    paths, channel = _normalize_generate_paths_chromium(paths, channel)  # normalize the paths and channel
     # initialize an empty list to hold the generated paths
-    genararated_paths = []  # initialize an empty list
+    generated_paths = []  # initialize an empty list
     # for each channel in the channel list
     for chan in channel:  # for each channel
         # for each path in the paths list
         for path in paths:  # for each path
             # append the path with the channel formatted into it to the list of generated paths
             # for each of the three possible environment variables
-            genararated_paths.append({'env': 'APPDATA', 'path': '..\\Local\\' + path.format(channel=chan)})  # append the path
-            genararated_paths.append({'env': 'LOCALAPPDATA', 'path': path.format(channel=chan)})  # append the path
-            genararated_paths.append({'env': 'APPDATA', 'path': path.format(channel=chan)})  # append the path
+            generated_paths.append({'env': 'APPDATA', 'path': '..\\Local\\' + path.format(channel=chan)})  # append the path
+            generated_paths.append({'env': 'LOCALAPPDATA', 'path': path.format(channel=chan)})  # append the path
+            generated_paths.append({'env': 'APPDATA', 'path': path.format(channel=chan)})  # append the path
     # return the list of generated paths
-    return genararated_paths  # return the generated paths
+    return generated_paths  # return the generated paths
 
 # define a function to decode data as UTF-8
 def _text_factory(data):
@@ -633,7 +633,7 @@ class Chrome(ChromiumBased):
         # define the paths for the cookies and keys for each platform
         args = {
             # paths for Linux
-            'linux_cookies': _genarate_nix_paths_chromium(
+            'linux_cookies': _generate_nix_paths_chromium(
                 [
                     '~/.config/google-chrome{channel}/Default/Cookies',
                     '~/.config/google-chrome{channel}/Profile */Cookies'
@@ -641,7 +641,7 @@ class Chrome(ChromiumBased):
                 channel=['', '-beta', '-unstable']
             ),
             # paths for Windows
-            'windows_cookies': _genarate_win_paths_chromium(
+            'windows_cookies': _generate_win_paths_chromium(
                 [
                     'Google\\Chrome{channel}\\User Data\\Default\\Cookies',
                     'Google\\Chrome{channel}\\User Data\\Default\\Network\\Cookies',
@@ -651,7 +651,7 @@ class Chrome(ChromiumBased):
                 channel=['', ' Beta', ' Dev']
             ),
             # paths for macOS
-            'osx_cookies': _genarate_nix_paths_chromium(
+            'osx_cookies': _generate_nix_paths_chromium(
                 [
                     '~/Library/Application Support/Google/Chrome{channel}/Default/Cookies',
                     '~/Library/Application Support/Google/Chrome{channel}/Profile */Cookies'
@@ -659,7 +659,7 @@ class Chrome(ChromiumBased):
                 channel=['', ' Beta']
             ),
             # keys for Windows
-            'windows_keys': _genarate_win_paths_chromium(
+            'windows_keys': _generate_win_paths_chromium(
                 [
                     'Google\\Chrome{channel}\\User Data\\Local State',
                     'Google\\Chrome{channel}\\User Data\\Profile *\\Local State'
@@ -682,7 +682,7 @@ class Chromium(ChromiumBased):
         # define the paths for the cookies and keys for each platform
         args = {
             # paths for Linux
-            'linux_cookies': _genarate_nix_paths_chromium(
+            'linux_cookies': _generate_nix_paths_chromium(
                 [
                     '~/.config/chromium{channel}/Default/Cookies',
                     '~/.config/chromium{channel}/Profile */Cookies'
@@ -690,7 +690,7 @@ class Chromium(ChromiumBased):
                 channel=['', '-beta', '-unstable']
             ),
             # paths for Windows
-            'windows_cookies': _genarate_win_paths_chromium(
+            'windows_cookies': _generate_win_paths_chromium(
                 [
                     'Chromium{channel}\\User Data\\Default\\Cookies',
                     'Chromium{channel}\\User Data\\Default\\Network\\Cookies',
@@ -700,7 +700,7 @@ class Chromium(ChromiumBased):
                 channel=['', ' Beta', ' Dev']
             ),
             # paths for macOS
-            'osx_cookies': _genarate_nix_paths_chromium(
+            'osx_cookies': _generate_nix_paths_chromium(
                 [
                     '~/Library/Application Support/Chromium{channel}/Default/Cookies',
                     '~/Library/Application Support/Chromium{channel}/Profile */Cookies'
@@ -708,7 +708,7 @@ class Chromium(ChromiumBased):
                 channel=['', ' Beta']
             ),
             # keys for Windows
-            'windows_keys': _genarate_win_paths_chromium(
+            'windows_keys': _generate_win_paths_chromium(
                 [
                     'Chromium{channel}\\User Data\\Local State',
                     'Chromium{channel}\\User Data\\Profile *\\Local State'
@@ -731,7 +731,7 @@ class Opera(ChromiumBased):
         # define the paths for the cookies and keys for each platform
         args = {
             # paths for Linux
-            'linux_cookies': _genarate_nix_paths_chromium(
+            'linux_cookies': _generate_nix_paths_chromium(
                 [
                     '~/.config/opera{channel}/Cookies',
                     '~/.config/opera{channel}/Profile */Cookies'
@@ -739,7 +739,7 @@ class Opera(ChromiumBased):
                 channel=['', '-beta', '-developer']
             ),
             # paths for Windows
-            'windows_cookies': _genarate_win_paths_chromium(
+            'windows_cookies': _generate_win_paths_chromium(
                 [
                     'Opera Software\\Opera{channel}\\Cookies',
                     'Opera Software\\Opera{channel}\\Network\\Cookies',
@@ -749,7 +749,7 @@ class Opera(ChromiumBased):
                 channel=[' Stable', ' Beta', ' Developer']
             ),
             # paths for macOS
-            'osx_cookies': _genarate_nix_paths_chromium(
+            'osx_cookies': _generate_nix_paths_chromium(
                 [
                     '~/Library/Application Support/com.operasoftware.Opera{channel}/Cookies',
                     '~/Library/Application Support/com.operasoftware.Opera{channel}/Profile */Cookies'
@@ -757,7 +757,7 @@ class Opera(ChromiumBased):
                 channel=['', ' Beta', ' Developer']
             ),
             # keys for Windows
-            'windows_keys': _genarate_win_paths_chromium(
+            'windows_keys': _generate_win_paths_chromium(
                 [
                     'Opera Software\\Opera{channel}\\Local State',
                     'Opera Software\\Opera{channel}\\Profile *\\Local State'
@@ -780,7 +780,7 @@ class Edge(ChromiumBased):
         # define the paths for the cookies and keys for each platform
         args = {
             # paths for Windows
-            'windows_cookies': _genarate_win_paths_chromium(
+            'windows_cookies': _generate_win_paths_chromium(
                 [
                     'Microsoft\\Edge{channel}\\User Data\\Default\\Cookies',
                     'Microsoft\\Edge{channel}\\User Data\\Default\\Network\\Cookies',
@@ -790,7 +790,7 @@ class Edge(ChromiumBased):
                 channel=['', ' Beta', ' Dev', ' Canary']
             ),
             # paths for macOS
-            'osx_cookies': _genarate_nix_paths_chromium(
+            'osx_cookies': _generate_nix_paths_chromium(
                 [
                     '~/Library/Application Support/Microsoft Edge{channel}/Default/Cookies',
                     '~/Library/Application Support/Microsoft Edge{channel}/Profile */Cookies'
@@ -798,7 +798,7 @@ class Edge(ChromiumBased):
                 channel=['', ' Beta', ' Dev', ' Canary']
             ),
             # keys for Windows
-            'windows_keys': _genarate_win_paths_chromium(
+            'windows_keys': _generate_win_paths_chromium(
                 [
                     'Microsoft\\Edge{channel}\\User Data\\Local State',
                     'Microsoft\\Edge{channel}\\User Data\\Profile *\\Local State'
@@ -821,7 +821,7 @@ class Brave(ChromiumBased):
         # define the paths for the cookies and keys for each platform
         args = {
             # paths for Linux
-            'linux_cookies': _genarate_nix_paths_chromium(
+            'linux_cookies': _generate_nix_paths_chromium(
                 [
                     '~/.config/BraveSoftware/Brave-Browser{channel}/Default/Cookies',
                     '~/.config/BraveSoftware/Brave-Browser{channel}/Profile */Cookies'
@@ -829,7 +829,7 @@ class Brave(ChromiumBased):
                 channel=['', '-Beta', '-Dev', '-Nightly']
             ),
             # paths for Windows
-            'windows_cookies': _genarate_win_paths_chromium(
+            'windows_cookies': _generate_win_paths_chromium(
                 [
                     'BraveSoftware\\Brave-Browser{channel}\\User Data\\Default\\Cookies',
                     'BraveSoftware\\Brave-Browser{channel}\\User Data\\Default\\Network\\Cookies',
@@ -839,7 +839,7 @@ class Brave(ChromiumBased):
                 channel=['', ' Beta', ' Dev', ' Nightly']
             ),
             # paths for macOS
-            'osx_cookies': _genarate_nix_paths_chromium(
+            'osx_cookies': _generate_nix_paths_chromium(
                 [
                     '~/Library/Application Support/BraveSoftware/Brave-Browser{channel}/Default/Cookies',
                     '~/Library/Application Support/BraveSoftware/Brave-Browser{channel}/Profile */Cookies'
@@ -847,7 +847,7 @@ class Brave(ChromiumBased):
                 channel=['', ' Beta', ' Dev', ' Nightly']
             ),
             # keys for Windows
-            'windows_keys': _genarate_win_paths_chromium(
+            'windows_keys': _generate_win_paths_chromium(
                 [
                     'BraveSoftware\\Brave-Browser{channel}\\User Data\\Local State',
                     'BraveSoftware\\Brave-Browser{channel}\\User Data\\Profile *\\Local State'
@@ -870,7 +870,7 @@ class Vivaldi(ChromiumBased):
         # define the paths for the cookies and keys for each platform
         args = {
             # paths for Linux
-            'linux_cookies': _genarate_nix_paths_chromium(
+            'linux_cookies': _generate_nix_paths_chromium(
                 [
                     '~/.config/vivaldi{channel}/Default/Cookies',
                     '~/.config/vivaldi{channel}/Profile */Cookies'
@@ -878,7 +878,7 @@ class Vivaldi(ChromiumBased):
                 channel=['', '-Snapshot']
             ),
             # paths for Windows
-            'windows_cookies': _genarate_win_paths_chromium(
+            'windows_cookies': _generate_win_paths_chromium(
                 [
                     'Vivaldi{channel}\\User Data\\Default\\Cookies',
                     'Vivaldi{channel}\\User Data\\Default\\Network\\Cookies',
@@ -888,7 +888,7 @@ class Vivaldi(ChromiumBased):
                 channel=['', ' Snapshot']
             ),
             # paths for macOS
-            'osx_cookies': _genarate_nix_paths_chromium(
+            'osx_cookies': _generate_nix_paths_chromium(
                 [
                     '~/Library/Application Support/Vivaldi{channel}/Default/Cookies',
                     '~/Library/Application Support/Vivaldi{channel}/Profile */Cookies'
@@ -896,7 +896,7 @@ class Vivaldi(ChromiumBased):
                 channel=['', ' Snapshot']
             ),
             # keys for Windows
-            'windows_keys': _genarate_win_paths_chromium(
+            'windows_keys': _generate_win_paths_chromium(
                 [
                     'Vivaldi{channel}\\User Data\\Local State',
                     'Vivaldi{channel}\\User Data\\Profile *\\Local State'
