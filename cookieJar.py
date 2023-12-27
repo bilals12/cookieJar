@@ -626,3 +626,410 @@ class ChromiumBasedBrowser:
         # return the decrypted data as a string
         return decrypted.decode('utf-8')
 
+class Chrome(ChromiumBased):
+    # subclass for Google Chrome
+
+    def __init__(self, cookie_file=None, domain_name="", key_file=None):
+        # define the paths for the cookies and keys for each platform
+        args = {
+            # paths for Linux
+            'linux_cookies': _genarate_nix_paths_chromium(
+                [
+                    '~/.config/google-chrome{channel}/Default/Cookies',
+                    '~/.config/google-chrome{channel}/Profile */Cookies'
+                ],
+                channel=['', '-beta', '-unstable']
+            ),
+            # paths for Windows
+            'windows_cookies': _genarate_win_paths_chromium(
+                [
+                    'Google\\Chrome{channel}\\User Data\\Default\\Cookies',
+                    'Google\\Chrome{channel}\\User Data\\Default\\Network\\Cookies',
+                    'Google\\Chrome{channel}\\User Data\\Profile *\\Cookies',
+                    'Google\\Chrome{channel}\\User Data\\Profile *\\Network\\Cookies'
+                ],
+                channel=['', ' Beta', ' Dev']
+            ),
+            # paths for macOS
+            'osx_cookies': _genarate_nix_paths_chromium(
+                [
+                    '~/Library/Application Support/Google/Chrome{channel}/Default/Cookies',
+                    '~/Library/Application Support/Google/Chrome{channel}/Profile */Cookies'
+                ],
+                channel=['', ' Beta']
+            ),
+            # keys for Windows
+            'windows_keys': _genarate_win_paths_chromium(
+                [
+                    'Google\\Chrome{channel}\\User Data\\Local State',
+                    'Google\\Chrome{channel}\\User Data\\Profile *\\Local State'
+                ],
+                channel=['', ' Beta', ' Dev']
+            ),
+            # name for os_crypt
+            'os_crypt_name': 'chrome',
+            # service and user for macOS keychain
+            'osx_key_service': 'Chrome Safe Storage',
+            'osx_key_user': 'Chrome'
+        }
+        # call the superclass constructor with the browser name and the arguments
+        super().__init__('chrome', cookie_file, domain_name, key_file, **args)
+
+class Chromium(ChromiumBased):
+    # subclass for Chromium
+
+    def __init__(self, cookie_file=None, domain_name="", key_file=None):
+        # define the paths for the cookies and keys for each platform
+        args = {
+            # paths for Linux
+            'linux_cookies': _genarate_nix_paths_chromium(
+                [
+                    '~/.config/chromium{channel}/Default/Cookies',
+                    '~/.config/chromium{channel}/Profile */Cookies'
+                ],
+                channel=['', '-beta', '-unstable']
+            ),
+            # paths for Windows
+            'windows_cookies': _genarate_win_paths_chromium(
+                [
+                    'Chromium{channel}\\User Data\\Default\\Cookies',
+                    'Chromium{channel}\\User Data\\Default\\Network\\Cookies',
+                    'Chromium{channel}\\User Data\\Profile *\\Cookies',
+                    'Chromium{channel}\\User Data\\Profile *\\Network\\Cookies'
+                ],
+                channel=['', ' Beta', ' Dev']
+            ),
+            # paths for macOS
+            'osx_cookies': _genarate_nix_paths_chromium(
+                [
+                    '~/Library/Application Support/Chromium{channel}/Default/Cookies',
+                    '~/Library/Application Support/Chromium{channel}/Profile */Cookies'
+                ],
+                channel=['', ' Beta']
+            ),
+            # keys for Windows
+            'windows_keys': _genarate_win_paths_chromium(
+                [
+                    'Chromium{channel}\\User Data\\Local State',
+                    'Chromium{channel}\\User Data\\Profile *\\Local State'
+                ],
+                channel=['', ' Beta', ' Dev']
+            ),
+            # name for os_crypt
+            'os_crypt_name': 'chromium',
+            # service and user for macOS keychain
+            'osx_key_service': 'Chromium Safe Storage',
+            'osx_key_user': 'Chromium'
+        }
+        # call the superclass constructor with the browser name and the arguments
+        super().__init__('chromium', cookie_file, domain_name, key_file, **args)
+
+class Opera(ChromiumBased):
+    # subclass for Opera
+
+    def __init__(self, cookie_file=None, domain_name="", key_file=None):
+        # define the paths for the cookies and keys for each platform
+        args = {
+            # paths for Linux
+            'linux_cookies': _genarate_nix_paths_chromium(
+                [
+                    '~/.config/opera{channel}/Cookies',
+                    '~/.config/opera{channel}/Profile */Cookies'
+                ],
+                channel=['', '-beta', '-developer']
+            ),
+            # paths for Windows
+            'windows_cookies': _genarate_win_paths_chromium(
+                [
+                    'Opera Software\\Opera{channel}\\Cookies',
+                    'Opera Software\\Opera{channel}\\Network\\Cookies',
+                    'Opera Software\\Opera{channel}\\Profile *\\Cookies',
+                    'Opera Software\\Opera{channel}\\Profile *\\Network\\Cookies'
+                ],
+                channel=[' Stable', ' Beta', ' Developer']
+            ),
+            # paths for macOS
+            'osx_cookies': _genarate_nix_paths_chromium(
+                [
+                    '~/Library/Application Support/com.operasoftware.Opera{channel}/Cookies',
+                    '~/Library/Application Support/com.operasoftware.Opera{channel}/Profile */Cookies'
+                ],
+                channel=['', ' Beta', ' Developer']
+            ),
+            # keys for Windows
+            'windows_keys': _genarate_win_paths_chromium(
+                [
+                    'Opera Software\\Opera{channel}\\Local State',
+                    'Opera Software\\Opera{channel}\\Profile *\\Local State'
+                ],
+                channel=[' Stable', ' Beta', ' Developer']
+            ),
+            # name for os_crypt
+            'os_crypt_name': 'opera',
+            # service and user for macOS keychain
+            'osx_key_service': 'Opera Safe Storage',
+            'osx_key_user': 'Opera'
+        }
+        # call the superclass constructor with the browser name and the arguments
+        super().__init__('opera', cookie_file, domain_name, key_file, **args)
+
+class Edge(ChromiumBased):
+    # subclass for Microsoft Edge
+
+    def __init__(self, cookie_file=None, domain_name="", key_file=None):
+        # define the paths for the cookies and keys for each platform
+        args = {
+            # paths for Windows
+            'windows_cookies': _genarate_win_paths_chromium(
+                [
+                    'Microsoft\\Edge{channel}\\User Data\\Default\\Cookies',
+                    'Microsoft\\Edge{channel}\\User Data\\Default\\Network\\Cookies',
+                    'Microsoft\\Edge{channel}\\User Data\\Profile *\\Cookies',
+                    'Microsoft\\Edge{channel}\\User Data\\Profile *\\Network\\Cookies'
+                ],
+                channel=['', ' Beta', ' Dev', ' Canary']
+            ),
+            # paths for macOS
+            'osx_cookies': _genarate_nix_paths_chromium(
+                [
+                    '~/Library/Application Support/Microsoft Edge{channel}/Default/Cookies',
+                    '~/Library/Application Support/Microsoft Edge{channel}/Profile */Cookies'
+                ],
+                channel=['', ' Beta', ' Dev', ' Canary']
+            ),
+            # keys for Windows
+            'windows_keys': _genarate_win_paths_chromium(
+                [
+                    'Microsoft\\Edge{channel}\\User Data\\Local State',
+                    'Microsoft\\Edge{channel}\\User Data\\Profile *\\Local State'
+                ],
+                channel=['', ' Beta', ' Dev', ' Canary']
+            ),
+            # name for os_crypt
+            'os_crypt_name': 'edge',
+            # service and user for macOS keychain
+            'osx_key_service': 'Microsoft Edge Safe Storage',
+            'osx_key_user': 'Microsoft Edge'
+        }
+        # call the superclass constructor with the browser name and the arguments
+        super().__init__('edge', cookie_file, domain_name, key_file, **args)
+
+class Brave(ChromiumBased):
+    # subclass for Brave
+
+    def __init__(self, cookie_file=None, domain_name="", key_file=None):
+        # define the paths for the cookies and keys for each platform
+        args = {
+            # paths for Linux
+            'linux_cookies': _genarate_nix_paths_chromium(
+                [
+                    '~/.config/BraveSoftware/Brave-Browser{channel}/Default/Cookies',
+                    '~/.config/BraveSoftware/Brave-Browser{channel}/Profile */Cookies'
+                ],
+                channel=['', '-Beta', '-Dev', '-Nightly']
+            ),
+            # paths for Windows
+            'windows_cookies': _genarate_win_paths_chromium(
+                [
+                    'BraveSoftware\\Brave-Browser{channel}\\User Data\\Default\\Cookies',
+                    'BraveSoftware\\Brave-Browser{channel}\\User Data\\Default\\Network\\Cookies',
+                    'BraveSoftware\\Brave-Browser{channel}\\User Data\\Profile *\\Cookies',
+                    'BraveSoftware\\Brave-Browser{channel}\\User Data\\Profile *\\Network\\Cookies'
+                ],
+                channel=['', ' Beta', ' Dev', ' Nightly']
+            ),
+            # paths for macOS
+            'osx_cookies': _genarate_nix_paths_chromium(
+                [
+                    '~/Library/Application Support/BraveSoftware/Brave-Browser{channel}/Default/Cookies',
+                    '~/Library/Application Support/BraveSoftware/Brave-Browser{channel}/Profile */Cookies'
+                ],
+                channel=['', ' Beta', ' Dev', ' Nightly']
+            ),
+            # keys for Windows
+            'windows_keys': _genarate_win_paths_chromium(
+                [
+                    'BraveSoftware\\Brave-Browser{channel}\\User Data\\Local State',
+                    'BraveSoftware\\Brave-Browser{channel}\\User Data\\Profile *\\Local State'
+                ],
+                channel=['', ' Beta', ' Dev', ' Nightly']
+            ),
+            # name for os_crypt
+            'os_crypt_name': 'brave',
+            # service and user for macOS keychain
+            'osx_key_service': 'Brave Safe Storage',
+            'osx_key_user': 'Brave'
+        }
+        # call the superclass constructor with the browser name and the arguments
+        super().__init__('brave', cookie_file, domain_name, key_file, **args)
+
+class Vivaldi(ChromiumBased):
+    # subclass for Vivaldi
+
+    def __init__(self, cookie_file=None, domain_name="", key_file=None):
+        # define the paths for the cookies and keys for each platform
+        args = {
+            # paths for Linux
+            'linux_cookies': _genarate_nix_paths_chromium(
+                [
+                    '~/.config/vivaldi{channel}/Default/Cookies',
+                    '~/.config/vivaldi{channel}/Profile */Cookies'
+                ],
+                channel=['', '-Snapshot']
+            ),
+            # paths for Windows
+            'windows_cookies': _genarate_win_paths_chromium(
+                [
+                    'Vivaldi{channel}\\User Data\\Default\\Cookies',
+                    'Vivaldi{channel}\\User Data\\Default\\Network\\Cookies',
+                    'Vivaldi{channel}\\User Data\\Profile *\\Cookies',
+                    'Vivaldi{channel}\\User Data\\Profile *\\Network\\Cookies'
+                ],
+                channel=['', ' Snapshot']
+            ),
+            # paths for macOS
+            'osx_cookies': _genarate_nix_paths_chromium(
+                [
+                    '~/Library/Application Support/Vivaldi{channel}/Default/Cookies',
+                    '~/Library/Application Support/Vivaldi{channel}/Profile */Cookies'
+                ],
+                channel=['', ' Snapshot']
+            ),
+            # keys for Windows
+            'windows_keys': _genarate_win_paths_chromium(
+                [
+                    'Vivaldi{channel}\\User Data\\Local State',
+                    'Vivaldi{channel}\\User Data\\Profile *\\Local State'
+                ],
+                channel=['', ' Snapshot']
+            ),
+            # name for os_crypt
+            'os_crypt_name': 'vivaldi',
+            # service and user for macOS keychain
+            'osx_key_service': 'Vivaldi Safe Storage',
+            'osx_key_user': 'Vivaldi'
+        }
+        # call the superclass constructor with the browser name and the arguments
+        super().__init__('vivaldi', cookie_file, domain_name, key_file, **args)
+
+class Firefox:
+    # class for Firefox
+
+    def __init__(self, cookie_file=None, domain_name=""):
+        # initialize with temporary cookie file, domain name, and session files
+        self.tmp_cookie_file = None
+        cookie_file = cookie_file or self.find_cookie_file()
+        self.tmp_cookie_file = _create_local_copy(cookie_file)
+        self.session_file = os.path.join(os.path.dirname(cookie_file), 'sessionstore.js')
+        self.session_file_lz4 = os.path.join(os.path.dirname(cookie_file), 'sessionstore-backups', 'recovery.jsonlz4')
+        self.domain_name = domain_name
+
+    def __del__(self):
+        # remove temporary cookie file when object is deleted
+        if self.tmp_cookie_file:
+            os.remove(self.tmp_cookie_file)
+
+    def __str__(self):
+        # return browser name when object is converted to a string
+        return 'firefox'
+
+    @staticmethod
+    def get_default_profile(user_data_path):
+        # get the default profile path for Firefox
+        config = configparser.ConfigParser()
+        profiles_ini_path = glob.glob(os.path.join(user_data_path + '**', 'profiles.ini'))
+        fallback_path = user_data_path + '**'
+        if not profiles_ini_path:
+            return fallback_path
+        profiles_ini_path = profiles_ini_path[0]
+        config.read(profiles_ini_path, encoding="utf8")
+        profile_path = None
+        for section in config.sections():
+            if section.startswith('Install'):
+                profile_path = config[section].get('Default')
+                break
+            elif config[section].get('Default') == '1' and not profile_path:
+                profile_path = config[section].get('Path')
+        for section in config.sections():
+            if config[section].get('Path') == profile_path:
+                absolute = config[section].get('IsRelative') == '0'
+                return profile_path if absolute else os.path.join(os.path.dirname(profiles_ini_path), profile_path)
+        return fallback_path
+
+    @staticmethod
+    def find_cookie_file():
+        # find the cookie file based on the operating system
+        cookie_files = []
+        if sys.platform == 'darwin':
+            user_data_path = os.path.expanduser('~/Library/Application Support/Firefox')
+        elif sys.platform.startswith('linux') or 'bsd' in sys.platform.lower():
+            general_path = os.path.expanduser('~/snap/firefox/common/.mozilla/firefox')
+            user_data_path = general_path if os.path.isdir(general_path) else os.path.expanduser('~/.mozilla/firefox')
+        elif sys.platform == 'win32':
+            user_data_path = os.path.join(os.environ.get('APPDATA'), 'Mozilla', 'Firefox')
+            cookie_files = glob.glob(os.path.join(os.environ.get('PROGRAMFILES'), 'Mozilla Firefox', 'profile', 'cookies.sqlite')) \
+                           or glob.glob(os.path.join(os.environ.get('PROGRAMFILES(X86)'), 'Mozilla Firefox', 'profile', 'cookies.sqlite'))
+        else:
+            raise BrowserCookieError('Unsupported operating system: ' + sys.platform)
+        cookie_files = glob.glob(os.path.join(Firefox.get_default_profile(user_data_path), 'cookies.sqlite')) or cookie_files
+        if cookie_files:
+            return cookie_files[0]
+        else:
+            raise BrowserCookieError('Failed to find Firefox cookie file')
+
+    @staticmethod
+    def __create_session_cookie(cookie_json):
+        # create a session cookie from a json object
+        return create_cookie(cookie_json.get('host', ''), cookie_json.get('path', ''),
+                             cookie_json.get('secure', False), None,
+                             cookie_json.get('name', ''), cookie_json.get('value', ''),
+                             cookie_json.get('httponly', False))
+
+    def __add_session_cookies(self, cj):
+        # add session cookies to the cookie jar
+        if not os.path.exists(self.session_file):
+            return
+        try:
+            json_data = json.loads(open(self.session_file, 'rb').read().decode())
+        except ValueError as e:
+            print('Error parsing firefox session JSON:', str(e))
+        else:
+            for window in json_data.get('windows', []):
+                for cookie in window.get('cookies', []):
+                    if self.domain_name == '' or self.domain_name in cookie.get('host', ''):
+                        cj.set_cookie(Firefox.__create_session_cookie(cookie))
+
+    def __add_session_cookies_lz4(self, cj):
+        # add lz4 compressed session cookies to the cookie jar
+        if not os.path.exists(self.session_file_lz4):
+            return
+        try:
+            file_obj = open(self.session_file_lz4, 'rb')
+            file_obj.read(8)
+            json_data = json.loads(lz4.block.decompress(file_obj.read()))
+        except ValueError as e:
+            print('Error parsing firefox session JSON LZ4:', str(e))
+        else:
+            for cookie in json_data.get('cookies', []):
+                if self.domain_name == '' or self.domain_name in cookie.get('host', ''):
+                    cj.set_cookie(Firefox.__create_session_cookie(cookie))
+
+    def load(self):
+        # load the cookies into a cookie jar
+        con = sqlite3.connect(self.tmp_cookie_file)
+        cur = con.cursor()
+        cur.execute('select host, path, isSecure, expiry, name, value, isHttpOnly from moz_cookies '
+                    'where host like ?', ('%{}%'.format(self.domain_name),))
+        cj = http.cookiejar.CookieJar()
+        for item in cur.fetchall():
+            host, path, secure, expires, name, value, http_only = item
+            c = create_cookie(host, path, secure, expires, name, value, http_only)
+            cj.set_cookie(c)
+        con.close()
+        # add session cookies to the cookie jar
+        self.__add_session_cookies(cj)
+        self.__add_session_cookies_lz4(cj)
+        return cj
+
+
+
