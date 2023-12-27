@@ -391,26 +391,26 @@ class _LinuxPasswordManager:
             return password.encode('utf-8')
 
     def __get_secretstorage_item_jeepney(self, schema: str, application: str):
-    # open a Jeepney connection to the SecretService
-    with _JeepneyConnection('/org/freedesktop/secrets', 'org.freedesktop.secrets', 'org.freedesktop.Secret.Service') as connection:
-        # search for items matching the schema and application
-        object_path = connection.call_method('SearchItems', 'a{ss}', {'xdg:schema': schema, 'application': application})
-        # filter out empty paths
-        object_path = list(filter(lambda x: len(x), object_path))
-        # if no paths were found, raise an error
-        if len(object_path) == 0:
-            raise RuntimeError(f'Can not find secret for {application}')
-        # get the first path
-        object_path = object_path[0][0]
+        # open a Jeepney connection to the SecretService
+        with _JeepneyConnection('/org/freedesktop/secrets', 'org.freedesktop.secrets', 'org.freedesktop.Secret.Service') as connection:
+            # search for items matching the schema and application
+            object_path = connection.call_method('SearchItems', 'a{ss}', {'xdg:schema': schema, 'application': application})
+            # filter out empty paths
+            object_path = list(filter(lambda x: len(x), object_path))
+            # if no paths were found, raise an error
+            if len(object_path) == 0:
+                raise RuntimeError(f'Can not find secret for {application}')
+            # get the first path
+            object_path = object_path[0][0]
 
-        # unlock the secret service
-        connection.call_method('Unlock', 'ao', [object_path])
-        # open a session with the secret service
-        _, session = connection.call_method('OpenSession', 'sv', 'plain', '')
-        # get the secrets from the secret service
-        _, _, secret, _ = connection.call_method('GetSecrets', 'aoo', [object_path], session)[object_path]
-        # return the secret
-        return bytes(secret)
+            # unlock the secret service
+            connection.call_method('Unlock', 'ao', [object_path])
+            # open a session with the secret service
+            _, session = connection.call_method('OpenSession', 'sv', 'plain', '')
+            # get the secrets from the secret service
+            _, _, secret, _ = connection.call_method('GetSecrets', 'aoo', [object_path], session)[object_path]
+            # return the secret
+            return bytes(secret)
 
     def __get_kdewallet_password_jeepney(self, os_crypt_name):
         # define the folder and key to be used
@@ -431,4 +431,198 @@ class _LinuxPasswordManager:
             # return the password
             return password.encode('utf-8')
 
+# define a class for Chromium-based browsers
+class ChromiumBasedBrowser:
+
+    UNIX_TO_NT_EPOCH_OFFSET = 11644473600  # seconds from 1601-01-01T00:00:00Z to 1970-01-01T00:00:00Z
+    # initialize the browser
+    def __init__(self, browser: str, cookie_file=None, domain_name="", key_file=None, **kwargs):
+        # Initialize the salt, iv, and length for encryption/decryption
+        self.salt = b'saltysalt'
+        self.iv = b' ' * 16
+        self.length = 16
+
+        # Store the browser name, cookie file path, domain name, and key file path
+        self.browser = browser
+        self.cookie_file = cookie_file
+        self.domain_name = domain_name
+        self.key_file = key_file
+
+        # Add the key and cookie file based on the operating system
+        self.__add_key_and_cookie_file(**kwargs)
+
+    def __add_key_and_cookie_file(self,
+                              linux_cookies=None, windows_cookies=None, osx_cookies=None,
+                              windows_keys=None, os_crypt_name=None, osx_key_service=None, osx_key_user=None):
+        # Check the operating system
+        if sys.platform == 'darwin':
+            # If it's OSX, get the password from the OSX keychain
+            password = _get_osx_keychain_password(osx_key_service, osx_key_user)
+            iterations = 1003  # number of pbkdf2 iterations on mac
+            # Generate the key
+            self.v10_key = PBKDF2(password, self.salt, self.length, iterations)
+            # Get the cookie file
+            cookie_file = self.cookie_file or _expand_paths(osx_cookies, 'osx')
+
+        elif sys.platform.startswith('linux') or 'bsd' in sys.platform.lower():
+            # If it's Linux or BSD, get the password from the Linux password manager
+            password = _LinuxPasswordManager(USE_DBUS_LINUX).get_password(os_crypt_name)
+            iterations = 1
+            # Generate the keys
+            self.v10_key = PBKDF2(CHROMIUM_DEFAULT_PASSWORD, self.salt, self.length, iterations)
+            self.v11_key = PBKDF2(password, self.salt, self.length, iterations)
+
+            # Get the cookie file
+            cookie_file = self.cookie_file or _expand_paths(linux_cookies, 'linux')
+
+        elif sys.platform == "win32":
+            # If it's Windows, get the key file
+            key_file = self.key_file or _expand_paths(windows_keys, 'windows')
+
+            if key_file:
+                # If there's a key file, open it and get the key
+                with open(key_file, 'rb') as f:
+                    key_file_json = json.load(f)
+                    key64 = key_file_json['os_crypt']['encrypted_key'].encode('utf-8')
+
+                    # Decode Key, get rid of DPAPI prefix, unprotect data
+                    keydpapi = base64.standard_b64decode(key64)[5:]
+                    _, self.v10_key = _crypt_unprotect_data(keydpapi, is_key=True)
+
+            # get cookie file from APPDATA
+            cookie_file = self.cookie_file
+
+            if not cookie_file:
+                if self.browser.lower() == 'chrome' and _windows_group_policy_path():
+                    cookie_file = _windows_group_policy_path()
+                else:
+                    cookie_file = _expand_paths(windows_cookies, 'windows')
+
+            else:
+                # if the operating system is not recognized, raise an error
+                raise BrowserCookieError(
+                "OS not recognized. Works on OSX, Windows, and Linux.")
+
+            if not cookie_file:
+                # if no cookie file is found, raise an error
+                raise BrowserCookieError('Failed to find {} cookie'.format(self.browser))
+
+            # create a local copy of the cookie file
+            self.tmp_cookie_file = _create_local_copy(cookie_file)
+
+    def __del__(self):
+        # check if the temporary cookie file attribute exists
+        if hasattr(self, 'tmp_cookie_file'):
+            # if it does, remove the temporary cookie file
+            os.remove(self.tmp_cookie_file)
+
+    def __str__(self):
+        # return the name of the browser when the object is converted to a string
+        return self.browser
+
+    def load(self):
+        # connect to the temporary cookie file with sqlite3
+        con = sqlite3.connect(self.tmp_cookie_file)
+        # set the text factory to handle different text encodings
+        con.text_factory = _text_factory
+        # create a cursor to execute SQL commands
+        cur = con.cursor()
+        try:
+            # try to select cookies from Chrome version <=55
+            cur.execute('SELECT host_key, path, secure, expires_utc, name, value, encrypted_value, is_httponly '
+                        'FROM cookies WHERE host_key like ?;', ('%{}%'.format(self.domain_name),))
+        except sqlite3.OperationalError:
+            # if that fails, select cookies from Chrome version >=56
+            cur.execute('SELECT host_key, path, is_secure, expires_utc, name, value, encrypted_value, is_httponly '
+                        'FROM cookies WHERE host_key like ?;', ('%{}%'.format(self.domain_name),))
+
+        # create a new cookie jar
+        cj = http.cookiejar.CookieJar()
+
+        # iterate over all selected cookies
+        for item in cur.fetchall():
+            host, path, secure, expires_nt_time_epoch, name, value, enc_value, http_only = item
+            # convert the expiration time from NT epoch to Unix epoch
+            if (expires_nt_time_epoch == 0):
+                expires = None
+            else:
+                expires = (expires_nt_time_epoch / 1000000) - self.UNIX_TO_NT_EPOCH_OFFSET
+
+            # decrypt the cookie value
+            value = self._decrypt(value, enc_value)
+            # create a new cookie and add it to the jar
+            c = create_cookie(host, path, secure, expires, name, value, http_only)
+            cj.set_cookie(c)
+        # close the sqlite3 connection
+        con.close()
+        # return the cookie jar
+        return cj
+
+    @staticmethod
+    def _decrypt_windows_chromium(value, encrypted_value):
+        # if the value is not empty, return it as is
+        if len(value) != 0:
+            return value
+
+        # if the encrypted value is empty, return an empty string
+        if encrypted_value == "":
+            return ""
+
+        # decrypt the encrypted value using the Windows CryptProtectData function
+        _, data = _crypt_unprotect_data(encrypted_value)
+        # make sure the decrypted data is bytes
+        assert isinstance(data, bytes)
+        # decode the bytes to a string and return it
+        return data.decode()
+
+    def _decrypt(self, value, encrypted_value):
+    # method to decrypt encoded cookies
+
+        # if the platform is Windows
+        if sys.platform == 'win32':
+            try:
+                # try to decrypt using the Windows Chromium method
+                return self._decrypt_windows_chromium(value, encrypted_value)
+
+            # if decryption fails, handle the error
+            except RuntimeError:  # Failed to decrypt the cipher text with DPAPI
+                # if there's no AES key, raise an error
+                if not self.v10_key:
+                    raise RuntimeError(
+                        'Failed to decrypt the cipher text with DPAPI and no AES key.')
+                # strip off the 'v10' prefix from the encrypted value
+                encrypted_value = encrypted_value[3:]
+                # split the encrypted value into nonce and tag
+                nonce, tag = encrypted_value[:12], encrypted_value[-16:]
+                # create a new AES cipher
+                aes = AES.new(self.v10_key, AES.MODE_GCM, nonce=nonce)
+
+                # try to decrypt and verify the encrypted value
+                try:
+                    data = aes.decrypt_and_verify(encrypted_value[12:-16], tag)
+                except ValueError:
+                    # if decryption fails, raise an error
+                    raise BrowserCookieError('Unable to get key for cookie decryption')
+                # return the decrypted data as a string
+                return data.decode()
+
+        # if the value is not empty or the encrypted value doesn't start with 'v10' or 'v11', return the value
+        if value or (encrypted_value[:3] not in [b'v11', b'v10']):
+            return value
+
+        # choose the key based on the prefix of the encrypted value
+        key = self.v11_key if encrypted_value[:3] == b'v11' else self.v10_key
+        # strip off the prefix from the encrypted value
+        encrypted_value = encrypted_value[3:]
+        # create a new AES cipher
+        cipher = AES.new(key, AES.MODE_CBC, self.iv)
+
+        # try to decrypt and unpad the encrypted value
+        try:
+            decrypted = unpad(cipher.decrypt(encrypted_value), AES.block_size)
+        except ValueError:
+            # if decryption fails, raise an error
+            raise BrowserCookieError('Unable to get key for cookie decryption')
+        # return the decrypted data as a string
+        return decrypted.decode('utf-8')
 
